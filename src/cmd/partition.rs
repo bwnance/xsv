@@ -49,6 +49,7 @@ struct Args {
     arg_outdir: String,
     flag_filename: FilenameTemplate,
     flag_prefix_length: Option<usize>,
+    flag_parse_date: bool,
     flag_drop: bool,
     flag_no_headers: bool,
     flag_delimiter: Option<Delimiter>,
@@ -101,12 +102,19 @@ impl Args {
         let mut row = csv::ByteRecord::new();
         while rdr.read_byte_record(&mut row)? {
             // Decide what file to put this in.
-            let column = &row[key_col];
-            let key = match self.flag_prefix_length {
-                // We exceed --prefix-length, so ignore the extra bytes.
-                Some(len) if len < column.len() => &column[0..len],
-                _ => &column[..],
+            let date_col_name = "date";
+            let platform_id_col_name = "platform_id";
+            let platform_id = &row[platform_id_col_name];
+            let date_val = &row[date_col_name];
+            
+            let year = &date_val[..4];
+            let month: u8 = (&date_val[5..7]).parse().unwrap();
+            let half = match month <= 6 {
+                true => 1,
+                false => 2
             };
+            let key = format!("{platform_id}__{year}h{half}");
+
             let mut entry = writers.entry(key.to_vec());
             let wtr = match entry {
                 Entry::Occupied(ref mut occupied) => occupied.get_mut(),
