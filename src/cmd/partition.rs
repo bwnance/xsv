@@ -3,6 +3,8 @@ use std::collections::hash_map::Entry;
 use std::fs;
 use std::io;
 use std::path::Path;
+use std::str;
+
 
 use csv;
 use regex::Regex;
@@ -101,12 +103,19 @@ impl Args {
         let mut row = csv::ByteRecord::new();
         while rdr.read_byte_record(&mut row)? {
             // Decide what file to put this in.
-            let column = &row[key_col];
-            let key = match self.flag_prefix_length {
-                // We exceed --prefix-length, so ignore the extra bytes.
-                Some(len) if len < column.len() => &column[0..len],
-                _ => &column[..],
+            let date_col_name = "date";
+            let platform_id_col_name = "platform_id";
+            let platform_id = str::from_utf8(&row[7]).unwrap();
+            let date_val = &row[4];
+            
+            let year = str::from_utf8(&date_val[..4]).unwrap();
+            let month: u8 = str::from_utf8(&date_val[5..7]).unwrap().parse().unwrap();
+            let half = match month <= 6 {
+                true => 1,
+                false => 2
             };
+            let strkey = format!("{platform_id}__{year}h{half}");
+            let key = strkey.as_bytes();
             let mut entry = writers.entry(key.to_vec());
             let wtr = match entry {
                 Entry::Occupied(ref mut occupied) => occupied.get_mut(),
